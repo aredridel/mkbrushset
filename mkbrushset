@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+
+NAME="$1"
+shift
+
+if [ -z "$NAME" ]; then
+    echo "Use: $0 name files..." 1>&2
+    exit 1
+fi
+
+if [ -f "$NAME".brushset ] && unzip "$NAME".brushset brushset.plist; then
+    plutil -convert json brushset.plist
+else
+    echo '{}' > brushset.plist
+fi
+
+for I in "$@"; do
+    UUID=`uuidgen`
+    unzip -d $UUID "$I"
+    jq '.brushes += [$ARGS.named.brush]| .' --arg brush $UUID brushset.plist > brushset.plist.new
+    mv brushset.plist.new brushset.plist
+    zip "$NAME".brushset -r $UUID brushset.plist
+done
+
+jq '.name = $ARGS.named.name' --arg name "$NAME" brushset.plist > brushset.plist.new
+mv brushset.plist.new brushset.plist
+
+plutil -convert binary1 brushset.plist
+
+zip -r "$NAME".brushset brushset.plist
